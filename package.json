@@ -31,6 +31,7 @@
     "clearMocks": true
   },
   "devDependencies": {
+    "@pact-foundation/pact": "^9.5.0",
     "@types/jest": "^24.0.23",
     "@types/node": "^12.12.14",
     "@types/node-fetch": "^2.5.4",
