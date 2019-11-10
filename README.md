@@ -1,36 +1,58 @@
-### Consumer Step 2 (Using provider state)
+### Consumer Step 3 (Working with a PACT broker)
 
-In our PaymentService API we want now to keep track of payment methods that are suspected to be fraudulent, by adding
-them to a list of blacklisted payment methods.
+#### Publish contracts to the pact-broker
 
-In our consumer tests, we want to verify that when we call our PaymentService with an invalid payment method, the
-response returned by the API tells us that the payment is invalid.
+In the `pact-workshop-consumer-js` directory execute `yarn add -D @pact-foundation/pact-node`.
 
-In order to try this scenario out, we would need somehow to have a predefined state in our PaymentService with
-invalid pre-registered payment methods.
-
-If we define the test from the point of view of the consumer for this scenario, we have different options:
-
-1) Write an integration test in the consumer for the integration against the backend API (The Provider)
-2) Write an E2E test, for example, a browser test that tests both the consumer and the provider as a whole
-3) Write a contract test between the two systems
-
-Option 1 is a reasonable approach, but you will need an instance of the provider running for testing purposes.
-Option 2 is much more expensive to implement, you will need an instance of the backend API running, an instance of the
-React App, and to write a browser test that although for this scenario it shouldn't be too complex, it will be more
-expensive to develop and maintain.
-
-In this workshop, we will explore a better approach. We will explore option 3, and we will implement a contract test
-between the two systems.
-
-Replace the content of `test/payments/paymentServiceClient.spec.ts` test with the following code:
+Modify the `test/payments/paymentServicePact.ts` to allow publishing pacts to the broker, the file should contain the 
+following content:
 
 ```typescript
+import * as path from "path";
+import { execSync } from "child_process";
+import { Pact } from "@pact-foundation/pact";
+
+const HOST = "localhost";
+const SERVER_PORT = 4567;
+const BROKER_PORT = 8000;
+
+const PACTS_DIR = path.resolve(process.cwd(), "pacts");
+
+const paymentServicePact = () => new Pact({
+  host: HOST,
+  port: SERVER_PORT,
+  log: path.resolve(process.cwd(), "logs", "mockserver-integration.log"),
+  dir: PACTS_DIR,
+  pactfileWriteMode: "update",
+  consumer: "PaymentServiceClient",
+  provider: "PaymentService",
+  logLevel: "info"
+});
+
+const gitCommit = execSync("git rev-parse HEAD").toString().trim();
+const gitBranch = execSync("git rev-parse --abbrev-ref HEAD").toString().trim();
+
+export const pactBrokerConfig = {
+  pactBroker: process.env.PACT_BROKER_BASE_URL || `http://${HOST}:${BROKER_PORT}`,
+  pactBrokerToken: process.env.PACT_BROKER_TOKEN,
+  pactFilesOrDirs: [PACTS_DIR],
+  consumerVersion: gitCommit,
+  tags: [gitBranch]
+};
+
+export default paymentServicePact;
+```
+
+Also, modify the `test/payments/paymentServiceClient.spec.ts` file so it looks like:
+
+```typescript
+import pactNode from "@pact-foundation/pact-node";
+
 import Http from "../../src/common/http";
 import { PaymentServiceClient } from "../../src/payments/paymentServiceClient";
 
 // @ts-ignore
-import paymentServicePact from "./paymentServicePact";
+import { default as paymentServicePact, pactBrokerConfig } from "./paymentServicePact";
 
 describe("Payment Service", () => {
     const pact = paymentServicePact();
@@ -59,7 +81,10 @@ describe("Payment Service", () => {
             )
         );
 
-        afterEach(async () => await pact.finalize());
+        afterEach(async () => {
+            await pactNode.publishPacts(pactBrokerConfig);
+            await pact.finalize();
+        });
 
         it("when the payment method is valid", async () => {
             const response = await new PaymentServiceClient(new Http()).validate(validPaymentMethod);
@@ -91,7 +116,10 @@ describe("Payment Service", () => {
             )
         );
 
-        afterEach(async () => await pact.finalize());
+        afterEach(async () => {
+            await pactNode.publishPacts(pactBrokerConfig);
+            await pact.finalize();
+        });
 
         it("when the payment method is fraudulent", async () => {
             const response = await new PaymentServiceClient(new Http()).validate(fraudulentPaymentMethod);
@@ -101,12 +129,14 @@ describe("Payment Service", () => {
 });
 ```
 
-Take a look at the second test, note that the `state` property contains now a value for the scenario that depends on
-some state.
+Note how we added a call in the `afterEach` blocks to publish the contracts to the broker.
 
-Run `yarn test` in the `pact-workshop-consumer-js` directory in order to update the consumer pacts and see the new pact
-in the `pacts/paymentserviceclient-paymentservice.json` file.
+If you have a broker running on [localhost](http://localhost:8000), run `yarn test` again to publish the contracts to
+the broker otherwise run `PACT_BROKER_BASE_URL=$PACT_BROKER_BASE_URL yarn test` if you want to publish the contract to
+a different broker.
 
-Navigate to the directory in where you checked out `pact-workshop-provider-js`,
-run `git clean -df && git checkout . && git checkout provider-step2` and follow the instructions in the Providers' 
+Navigate to the broker URL to see the contract published.
+
+Navigate to the directory in where you checked out `pact-workshop-provider-js`, run
+`git clean -df && git checkout . && git checkout provider-step3` and follow the instructions in the **Provider's**
 readme file.

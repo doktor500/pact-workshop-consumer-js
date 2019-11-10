@@ -25,6 +25,27 @@
         }
       },
       "metadata": null
+    },
+    {
+      "description": "a request for validating a payment method",
+      "providerState": "fraudulent payment method",
+      "request": {
+        "method": "GET",
+        "path": "/validate-payment-method/9999999999999999",
+        "headers": {
+          "Accept": "application/json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "status": "fraud"
+        }
+      },
+      "metadata": null
     }
   ],
   "metadata": {

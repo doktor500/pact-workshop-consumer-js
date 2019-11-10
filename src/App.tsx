@@ -32,9 +32,9 @@ export default class App extends React.Component<Props, State> {
   public renderValidationResult = () => {
     if (this.state.isValid !== undefined) {
       return (
-        <div className={`text-center mt-3 alert alert-${this.state.isValid ? "success" : "danger"}`}>
-          <span>{this.state.paymentMethod} is {this.state.isValid ? "valid" : "invalid"}</span>
-        </div>
+          <div className={`text-center mt-3 alert alert-${this.state.isValid ? "success" : "danger"}`}>
+            <span>{this.state.paymentMethod} is {this.state.isValid ? "valid" : "invalid"}</span>
+          </div>
       );
     } else if (this.state.error) {
       return(
@@ -48,15 +48,15 @@ export default class App extends React.Component<Props, State> {
 
   public render() {
     return (
-      <div className="container w-25 mt-3">
-        <div className="form-group">
-          <label>Validate payment method</label>
-          <input type="text" className="form-control"
-            value={this.state.paymentMethod} onChange={this.updatePaymentMethod} />
-          <button className="btn btn-secondary mt-3" onClick={this.validate}>Validate</button>
+        <div className="container w-25 mt-3">
+          <div className="form-group">
+            <label>Validate payment method</label>
+            <input type="text" className="form-control"
+                   value={this.state.paymentMethod} onChange={this.updatePaymentMethod} />
+            <button className="btn btn-secondary mt-3" onClick={this.validate}>Validate</button>
+          </div>
+          {this.renderValidationResult()}
         </div>
-        {this.renderValidationResult()}
-      </div>
     );
   }
 }
