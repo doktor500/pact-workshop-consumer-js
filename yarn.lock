@@ -27,7 +27,7 @@
     "@types/istanbul-reports" "^1.1.1"
     "@types/yargs" "^13.0.0"
 
-"@pact-foundation/pact-node@^10.2.1":
+"@pact-foundation/pact-node@^10.2.1", "@pact-foundation/pact-node@^10.2.2":
   version "10.2.2"
   resolved "https://registry.yarnpkg.com/@pact-foundation/pact-node/-/pact-node-10.2.2.tgz#c53489de11581d08ac290f80c43fac979359964c"
   integrity sha512-NZL62AAMltCGpIHx7CW6wHAEqfMttYy4yylrLecFGVV52gqzwoqBhSKS7sRPvTzTg5iShwikB12QbWgEayT5bQ==

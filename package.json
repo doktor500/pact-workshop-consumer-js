@@ -32,6 +32,7 @@
   },
   "devDependencies": {
     "@pact-foundation/pact": "^9.5.0",
+    "@pact-foundation/pact-node": "^10.2.2",
     "@types/jest": "^24.0.23",
     "@types/node": "^12.12.14",
     "@types/node-fetch": "^2.5.4",
