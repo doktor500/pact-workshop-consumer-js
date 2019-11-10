@@ -1,19 +1,15 @@
-Run `yarn start` in this repo to start the frontend application
+### Consumer Step 2 (Using provider state)
 
-Navigate to `pact-workshop-provider-js` and run `yarn start` to execute the payment service backend API (provider)
+In our PaymentService API we want now to keep track of payment methods that are suspected to be fraudulent, by adding
+them to a list of blacklisted payment methods.
 
-Navigate to `localhost:3000` and try to validate a valid payment method. Remember that a valid payment method contains
-a number of length 16, so, for instance, you can use `1234 1234 1234 1234`. Type the credit card number in the form
-and click on validate. Surprisingly, you will get a response from the payment service backend API (the provider)
-stating that your payment method is invalid, can you spot what the problem is...?
+In our consumer tests, we want to verify that when we call our PaymentService with an invalid payment method, the
+response returned by the API tells us that the payment is invalid.
 
-The consumer was expecting a response with this JSON payload `{ "status": "valid" }`, however, the server replied with
-this payload `{ "state": "valid" }`. The "contract" between the React App (The consumer) and the backend API
-(The provider) is broken.
+In order to try this scenario out, we would need somehow to have a predefined state in our PaymentService with
+invalid pre-registered payment methods.
 
-Now think for a moment about this testing strategy, both the consumer and the provider are covered by unit tests, but
-things are not working well between them as a whole. We are missing some tests that can give us confidence that
-everything works in the way that we expect, we have different options at this stage, the most common are:
+If we define the test from the point of view of the consumer for this scenario, we have different options:
 
 1) Write an integration test in the consumer for the integration against the backend API (The Provider)
 2) Write an E2E test, for example, a browser test that tests both the consumer and the provider as a whole
@@ -27,38 +23,7 @@ expensive to develop and maintain.
 In this workshop, we will explore a better approach. We will explore option 3, and we will implement a contract test
 between the two systems.
 
-Run `yarn add -D @pact-foundation/pact` to install Pact as a dev dependency.
-
-Create a `test/payments/paymentServicePact.ts` file with the following code:
-
-```typescript
-import * as path from "path";
-import { Pact } from "@pact-foundation/pact";
-
-const HOST = "localhost";
-const PORT = 4567;
-
-const paymentServicePact = () => new Pact({
-    host: HOST,
-    port: PORT,
-    log: path.resolve(process.cwd(), "logs", "mockserver-integration.log"),
-    dir: path.resolve(process.cwd(), "pacts"),
-    pactfileWriteMode: "update",
-    consumer: "PaymentServiceClient",
-    provider: "PaymentService",
-    logLevel: "info"
-});
-
-export default paymentServicePact;
-```
-
-This file configures Pact between the provider `PaymentService` and the consumer `PaymentServiceClient` (this repo),
-and sets some basic configuration such as the host and the port in where the provider's API runs.
-
-Now let's modify the existing unit test file `test/payments/paymentServiceClient.spec.ts` to convert it to a contract 
-test.
-
-Replace the content of the test with the following code:
+Replace the content of `test/payments/paymentServiceClient.spec.ts` test with the following code:
 
 ```typescript
 import Http from "../../src/common/http";
@@ -68,86 +33,80 @@ import { PaymentServiceClient } from "../../src/payments/paymentServiceClient";
 import paymentServicePact from "./paymentServicePact";
 
 describe("Payment Service", () => {
-  const pact = paymentServicePact();
+    const pact = paymentServicePact();
 
-  describe("validates a payment method", () => {
-    const validPaymentMethod = "1111111111111111";
-    const status = "valid";
+    describe("validates a payment method", () => {
+        const validPaymentMethod = "1111111111111111";
+        const status = "valid";
 
-    beforeEach(() =>
-        pact
-          .setup()
-          .then(() => pact.addInteraction({
-                state: "",
-                uponReceiving: "a request for validating a payment method",
-                withRequest: {
-                  method: "GET",
-                  path: `/validate-payment-method/${validPaymentMethod}`,
-                  headers: { Accept: "application/json" },
-                },
-                willRespondWith: {
-                  status: 200,
-                  headers: { "Content-Type": "application/json" },
-                  body: { status },
-                }
-              })
-          )
-    );
+        beforeEach(() =>
+            pact
+            .setup()
+            .then(() => pact.addInteraction({
+                    state: "",
+                    uponReceiving: "a request for validating a payment method",
+                    withRequest: {
+                        method: "GET",
+                        path: `/validate-payment-method/${validPaymentMethod}`,
+                        headers: { Accept: "application/json" },
+                    },
+                    willRespondWith: {
+                        status: 200,
+                        headers: { "Content-Type": "application/json" },
+                        body: { status },
+                    }
+                })
+            )
+        );
 
-    afterEach(async () => await pact.finalize());
+        afterEach(async () => await pact.finalize());
 
-    it("when the payment method is valid", async () => {
-      const response = await new PaymentServiceClient(new Http()).validate(validPaymentMethod);
-      expect(response).toEqual(status);
+        it("when the payment method is valid", async () => {
+            const response = await new PaymentServiceClient(new Http()).validate(validPaymentMethod);
+            expect(response).toEqual(status);
+        });
     });
-  });
+
+    describe("does not validate a payment method", () => {
+        const fraudulentPaymentMethod = "9999999999999999";
+        const status = "fraud";
+
+        beforeEach(() =>
+            pact
+            .setup()
+            .then(() => pact.addInteraction({
+                    state: "fraudulent payment method",
+                    uponReceiving: "a request for validating a payment method",
+                    withRequest: {
+                        method: "GET",
+                        path: `/validate-payment-method/${fraudulentPaymentMethod}`,
+                        headers: { Accept: "application/json" },
+                    },
+                    willRespondWith: {
+                        status: 200,
+                        headers: { "Content-Type": "application/json" },
+                        body: { status },
+                    }
+                })
+            )
+        );
+
+        afterEach(async () => await pact.finalize());
+
+        it("when the payment method is fraudulent", async () => {
+            const response = await new PaymentServiceClient(new Http()).validate(fraudulentPaymentMethod);
+            expect(response).toEqual(status);
+        });
+    });
 });
 ```
 
-Stop the server running on `pact-workshop-provider-js`, in `pact-workshop-consumer-js` directory run `yarn test` and see
-what happens. The output of the test is different and a new JSON file is created in the `pacts` directory. Take a look 
-at the content of the JSON file, this is the contract that Pact has created.
+Take a look at the second test, note that the `state` property contains now a value for the scenario that depends on
+some state.
 
-The content of the file should be similar to:
+Run `yarn test` in the `pact-workshop-consumer-js` directory in order to update the consumer pacts and see the new pact
+in the `pacts/paymentserviceclient-paymentservice.json` file.
 
-```json
-{
-  "consumer": {
-    "name": "PaymentServiceClient"
-  },
-  "provider": {
-    "name": "PaymentService"
-  },
-  "interactions": [
-    {
-      "description": "a request for validating a payment method",
-      "request": {
-        "method": "GET",
-        "path": "/validate-payment-method/1111111111111111",
-        "headers": {
-          "Accept": "application/json"
-        }
-      },
-      "response": {
-        "status": 200,
-        "headers": {
-          "Content-Type": "application/json"
-        },
-        "body": {
-          "status": "valid"
-        }
-      },
-      "metadata": null
-    }
-  ],
-  "metadata": {
-    "pactSpecification": {
-      "version": "2.0.0"
-    }
-  }
-}
-```
-
-Navigate to the directory in where you checked out `pact-workshop-provider-js`, run
-`git clean -df && git checkout . && git checkout provider-step1` and follow the instructions in the Providers' readme
-file.
+Navigate to the directory in where you checked out `pact-workshop-provider-js`,
+run `git clean -df && git checkout . && git checkout provider-step2` and follow the instructions in the Providers' 
+readme file.

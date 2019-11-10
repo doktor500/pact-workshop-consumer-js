@@ -1,0 +1,35 @@
+{
+  "consumer": {
+    "name": "PaymentServiceClient"
+  },
+  "provider": {
+    "name": "PaymentService"
+  },
+  "interactions": [
+    {
+      "description": "a request for validating a payment method",
+      "request": {
+        "method": "GET",
+        "path": "/validate-payment-method/1111111111111111",
+        "headers": {
+          "Accept": "application/json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "status": "valid"
+        }
+      },
+      "metadata": null
+    }
+  ],
+  "metadata": {
+    "pactSpecification": {
+      "version": "2.0.0"
+    }
+  }
+}

@@ -1,17 +1,41 @@
-import { PaymentMethodStatus, PaymentServiceClient } from "../../src/payments/paymentServiceClient";
+import Http from "../../src/common/http";
+import { PaymentServiceClient } from "../../src/payments/paymentServiceClient";
+
+// @ts-ignore
+import paymentServicePact from "./paymentServicePact";
 
 describe("Payment Service", () => {
-  it("validates a valid payment method", async () => {
-    const http = { get: jest.fn().mockReturnValue(Promise.resolve({ status: "valid" })) };
-    const validPaymentMethod = "1111 1111 1111 1111";
-    const response = await new PaymentServiceClient(http).validate(validPaymentMethod);
-    expect(response).toEqual(PaymentMethodStatus.Valid);
-  });
+  const pact = paymentServicePact();
 
-  it("validates an invalid payment method", async () => {
-    const http = { get: jest.fn().mockReturnValue(Promise.resolve({ status: "invalid" })) };
-    const invalidPaymentMethod = "1111";
-    const response = await new PaymentServiceClient(http).validate(invalidPaymentMethod);
-    expect(response).toEqual(PaymentMethodStatus.Invalid);
+  describe("validates a payment method", () => {
+    const validPaymentMethod = "1111111111111111";
+    const status = "valid";
+
+    beforeEach(() =>
+        pact
+            .setup()
+            .then(() => pact.addInteraction({
+                  state: "",
+                  uponReceiving: "a request for validating a payment method",
+                  withRequest: {
+                    method: "GET",
+                    path: `/validate-payment-method/${validPaymentMethod}`,
+                    headers: { Accept: "application/json" },
+                  },
+                  willRespondWith: {
+                    status: 200,
+                    headers: { "Content-Type": "application/json" },
+                    body: { status },
+                  }
+                })
+            )
+    );
+
+    afterEach(async () => await pact.finalize());
+
+    it("when the payment method is valid", async () => {
+      const response = await new PaymentServiceClient(new Http()).validate(validPaymentMethod);
+      expect(response).toEqual(status);
+    });
   });
 });
